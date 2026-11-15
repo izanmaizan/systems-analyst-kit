@@ -1,0 +1,48 @@
+@startuml
+skinparam backgroundStyle white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam actorStyle stickfigure
+skinparam defaultFontSize 13
+title Use Case Level 2 — "Melihat Jadwal Dokter Hari Ini"
+
+left to right direction
+
+actor "Pengunjung" as P
+actor "Aplikasi Next.js\n(Server Component)" as N
+actor "Sistem BPJS\nKesehatan" as B
+
+rectangle "Detail Use Case: Menyajikan Jadwal Dokter" {
+  usecase "Membuka Halaman\nBeranda /dokter/jadwal" as D1
+  usecase "Membaca Daftar Poli\ndari master_data.json" as D2
+  usecase "Menghitung Tanggal\nHari Ini (WIB)" as D3
+  usecase "Menandatangani Request\nHMAC-SHA256" as D4
+  usecase "Mengambil Jadwal\nper Poli (44 kode poli)" as D5
+  usecase "Mendekripsi Respons\nAES-256-CBC + LZString" as D6
+  usecase "Menggabungkan Jadwal\nSemua Poli (allSettled)" as D7
+  usecase "Menyematkan HTML\npada Render ISR" as D8
+  usecase "Menampilkan Jadwal\n& Pencarian Poli" as D9
+  usecase "Menampilkan Jadwal\nKosong + Pesan Normal" as D10
+}
+
+P --> D1
+N --> D9
+B --> D6
+
+D1 ..> D2 : <<include>>
+D2 ..> D3 : <<include>>
+D5 ..> D4 : <<include>>
+D5 ..> D6 : <<include>>
+D7 ..> D5 : <<include>>
+D8 ..> D7 : <<include>>
+D9 ..> D8 : <<include>>
+
+D1 ..> D10 : <<extend>>
+note right of D10
+  Gagal di localhost/build
+  (IP whitelist BPJS) = normal,
+  fungsi fetchJadwalPoli
+  return array kosong silent.
+end note
+
+@enduml

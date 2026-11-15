@@ -1,0 +1,66 @@
+@startuml
+skinparam backgroundStyle white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontSize 12
+title Sequence Diagram — Alur Dokumen PPID (URL Tersembunyi + Cache Panas)
+
+actor Pengunjung as U
+participant "Browser" as B
+participant "Halaman PPID\nforce-dynamic" as HP
+participant "getPPIDItems()\nsrc/services/api.ts" as API
+participant "globalThis.__ppidCache\nfresh 2 menit" as CH
+participant "/api/ppid/stream" as ST
+participant "Portal PPID\nppid.provcontoh.go.id" as PP
+participant "instrumentation-node.ts\ninterval 60 detik" as W
+
+W -> CH: warm() kategori 1, 2, 3, 6 saat start
+loop setiap 60 detik
+  W -> CH: segarkan seluruh entri cache
+end
+
+activate U
+U -> B: buka /ppid/data-informasi
+activate B
+B -> HP: GET /ppid/data-informasi
+activate HP
+HP -> API: getPPIDItems(id_category=2)
+activate API
+API -> CH: cek entri cache
+activate CH
+
+alt entri segar (usia < 2 menit)
+  CH --> API: data lama langsung
+  note right of CH: stale-while-revalidate: pengunjung
+  note right of CH  : tidak menunggu 9 MB / 20 detik
+else entri basi (usia >= 2 menit)
+  CH --> API: data lama + pemicu refresh latar belakang
+  API -> PP: GET /api/cluster-data?id_instansi=86&id_category=2
+  PP --> API: 50 item JSON (retry 3x, timeout 90 detik)
+  API -> CH: perbarui timestamp
+else tanpa entri
+  CH --> API: kosong
+  API -> PP: tunggu unduhan penuh (inflight dedup)
+  PP --> API: 50 item JSON
+  API -> CH: simpan entri
+end
+deactivate CH
+API --> HP: PPIDItem[]
+deactivate API
+HP -> HP: transformPPIDItem() → /api/ppid/stream?id=&t=&n=
+HP --> B: HTML daftar dokumen
+deactivate HP
+
+U -> B: klik unduh dokumen
+B -> ST: GET /api/ppid/stream?id=..&t=TOKEN&n=judul
+activate ST
+ST -> PP: ikuti redirect maksimum 5 + DNS publik
+PP --> ST: stream biner PDF/gambar
+ST --> B: konten + Cache-Control private max-age=300
+deactivate ST
+note over ST,PP: URL asli portal PPID tidak pernah sampai ke browser
+B --> U: dokumen terbuka/terunduh
+deactivate B
+deactivate U
+
+@enduml

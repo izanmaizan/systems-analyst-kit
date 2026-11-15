@@ -1,0 +1,66 @@
+@startuml
+skinparam backgroundStyle white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontSize 12
+title Deployment Diagram — Infrastruktur Situs RSUD Contoh
+
+node "Pengunjung" as P {
+  node "Ponsel Android/iOS\n(Chrome/Safari)" as HP
+  node "Komputer Desktop\n(Windows/Linux)" as PC
+}
+
+node "Jaringan Publik\nInternet" as NET {
+  node "Reverse Proxy / Ingress\nTLS 443 (HSTS 1 tahun)" as RP
+}
+
+node "Server Aplikasi (Docker)\nnode:20-alpine, port kontainer 3000,\nlayanan dev 6904" as SRV {
+  artifact "server.js\n(Next.js standalone)" as A1
+  artifact ".next/static\n(aset JS/CSS)" as A2
+  artifact "src/app/api/dokter/\nmaster_data.json" as A3
+  artifact ".env.production\n(BPJS_*, GEMINI_API_KEY)" as A4
+  node "Cache In-Memory\nISR + __ppidCache" as C1
+}
+
+node "GitLab CI/CD\n(image-building → deploy-dev → deploy-prod)" as CI
+
+cloud "Layanan Eksternal (HTTPS)" as EXT {
+  node "api-web.provcontoh.go.id\nBackend Konten" as BK
+  node "ppid.provcontoh.go.id\nPortal PPID instansi 86" as PP
+  node "apijkn.bpjs-kesehatan.go.id\nIP whitelist" as BPJS
+  node "SURVEI KEPUASAN.provcontoh.go.id\nIKM unit 3178" as SEP
+  node "generativelanguage.googleapis.com\nGemini 2.5 Flash" as GM
+  node "translate.googleapis.com\nGoogle Translate Edge" as GT
+}
+
+HP --> NET : HTTPS/443
+PC --> NET : HTTPS/443
+NET --> RP : HTTPS/443
+RP --> SRV : HTTP/3000
+
+CI --> SRV : deploy image + build-arg\nENV_FILE deploy/.env.dev|.prod
+SRV -[hidden]-> CI
+
+SRV --> BK : /api/proxy/... :443
+SRV --> PP : /api/ppid/stream :443
+SRV --> BPJS : auth HMAC-SHA256 :443
+SRV --> SEP : /api/SURVEI KEPUASAN/... :443
+SRV --> GM : /api/chat :443
+SRV --> GT : /api/translate :443
+
+SRV *- A1
+SRV *- A2
+SRV *- A3
+SRV *- A4
+SRV *- C1
+
+note bottom of BPJS
+  Akses hanya dari IP terdaftar;
+  gagal di localhost/build = normal.
+end note
+note bottom of PP
+  Kategori 2 ±9 MB (±20 detik) —
+  disimpan pada cache in-memory.
+end note
+
+@enduml

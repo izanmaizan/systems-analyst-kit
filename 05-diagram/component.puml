@@ -1,0 +1,66 @@
+@startuml
+skinparam backgroundStyle white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontSize 12
+skinparam componentStyle rectangle
+title Component Diagram — Komponen Modul dan Interface
+
+package "Browser Pengunjung" {
+  [Komponen Antarmuka React\n(page.tsx, components/...)]
+  [SearchOverlay + Aksesibilitas]
+  [Zustand Store\nrsud-accessibility]
+}
+
+package "Aplikasi Next.js 14 (output standalone)" {
+  [App Router Pages\n158 berkas page.tsx] as PAGES
+  [Server Component\nJadwalHariIni] as JH
+  [API Routes\n12 route /api/*] as ROUTES
+  [Services & Lib\napi.ts, jadwal.ts, search, i18n] as SVC
+  [TanStack Query + Adapter\nhooks/useApi.ts] as RQ
+  [Instrumentation\npanas cache 60 detik] as INSTR
+  [Cache In-Memory\n__ppidCache + ISR] as CACHE
+  [File Statis\nmaster_data.json, indeks] as STAT
+}
+
+package "Layanan Eksternal" {
+  [Backend Konten\napi-web.provcontoh] as BK
+  [Portal PPID\nppid.provcontoh] as PP
+  [BPJS Kesehatan\napijkn] as BP
+  [SURVEI KEPUASAN IKM] as SK
+  [Gemini API\nAsisten Contoh] as GM
+  [Google Translate Edge] as GT
+}
+
+[Komponen Antarmuka React\n(page.tsx, components/...)] --> RQ : data ter-normalisasi
+[SearchOverlay + Aksesibilitas] --> [Zustand Store\nrsud-accessibility] : state UI
+PAGES --> JH : embed jadwal pada ISR
+PAGES --> ROUTES : fetch /api/*
+RQ --> SVC : panggil clientApi
+ROUTES --> SVC : server-side fetch
+SVC --> CACHE : baca/tulis entri
+SVC --> STAT : baca daftar poli & indeks
+INSTR --> CACHE : panaskan tiap 60 detik
+
+interface "IProxyPath\nGET /api/proxy/[...path]" as IP1
+interface "IFileStream\nGET /api/ppid/stream" as IP2
+interface "ISURVEI KEPUASAN\nGET|POST /api/SURVEI KEPUASAN/[...path]" as IP3
+interface "IChat\nPOST /api/chat" as IP4
+interface "ITranslate\nGET /api/translate" as IP5
+interface "IJadwal\nGET /api/jadwal-dokter/*" as IP6
+
+ROUTES - IP1
+ROUTES - IP2
+ROUTES - IP3
+ROUTES - IP4
+ROUTES - IP5
+ROUTES - IP6
+
+IP1 --> BK : HTTPS + s-maxage
+IP2 --> PP : HTTPS + retry/redirect
+IP3 --> SK : HTTPS unit kerja 3178
+IP4 --> GM : HTTPS + GEMINI_API_KEY
+IP5 --> GT : Edge runtime cache 7 hari
+IP6 --> BP : HMAC-SHA256 + AES-256-CBC
+
+@enduml

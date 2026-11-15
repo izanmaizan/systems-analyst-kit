@@ -1,0 +1,66 @@
+@startuml
+skinparam backgroundStyle white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontSize 12
+title Activity Diagram — Proses Menyajikan Informasi kepada Pasien
+
+start
+
+partition "Pengunjung" {
+  :Membuka halaman situs
+  (beranda, /layanan, /dokter/jadwal);
+  :Memilih menu atau memasukkan
+  kata kunci pada pencarian (Ctrl+K);
+}
+
+partition "Aplikasi Next.js (Server)" {
+  :Menentukan strategi rendering
+  (ISR / force-dynamic / client);
+  if (Halaman memakai ISR?) then (ya)
+    :Sajikan HTML dari cache ISR;
+    if (Cache kadaluarsa?) then (ya)
+      :Revalidate di latar belakang;
+    else (tidak)
+    endif
+  else (tidak)
+    :Render dinamis pada setiap request;
+  endif
+
+  :Menjalankan Server Api
+  (src/services/api.ts);
+  if (Butuh data sumber eksternal?) then (ya)
+    :Lewati proxy server-side
+    (/api/proxy, /api/ppid/stream, /api/SURVEI KEPUASAN);
+  else (tidak)
+    :Baca data statis
+    (master_data.json, indeks pencarian);
+  endif
+
+  if (Data mentah diterima?) then (ya)
+    :Normalisasi + sanitizeHtml()
+    (DOMPurify);
+    :Susun React Server Component;
+  else (tidak)
+    :Tampilkan empty state / pesan
+    yang tetap wajar;
+  endif
+}
+
+partition "Sistem Eksternal" {
+  :api-web.provcontoh.go.id / ppid.provcontoh.go.id /
+  apijkn.bpjs-kesehatan.go.id / SURVEI KEPUASAN.provcontoh.go.id;
+}
+
+:Respons HTML + header keamanan
+(CSP, X-Frame-Options, HSTS);
+
+partition "Pengunjung" {
+  :Membaca informasi, mengunduh dokumen,
+  mengisi survei, atau mengatur aksesibilitas;
+  :Selesai;
+}
+
+stop
+
+@enduml

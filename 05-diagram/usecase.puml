@@ -1,0 +1,57 @@
+@startuml
+skinparam backgroundStyle white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam actorStyle stickfigure
+skinparam defaultFontSize 13
+skinparam packageStyle rectangle
+title Use Case Diagram — Situs Resmi RSUD Contoh
+
+left to right direction
+
+actor "Pengunjung\n(pasien & keluarga)" as P
+actor "Admin Konten\n(backend Provinsi)" as A
+actor "Operator PPID\n(RSUD)" as O
+actor "Sistem BPJS\nKesehatan" as B
+actor "Backend Konten\napi-web.provcontoh" as S
+actor "Portal PPID\nppid.provcontoh" as C
+
+rectangle "Situs Resmi RSUD Contoh (Next.js 14 App Router)" {
+  usecase "Jelajahi Profil &\nLayanan RS" as UC1
+  usecase "Cari Informasi\n(pencarian hybrid)" as UC2
+  usecase "Melihat Jadwal\nDokter Hari Ini" as UC3
+  usecase "Melihat Kapasitas\nTempat Tidur" as UC4
+  usecase "Mengunduh Dokumen\nPPID" as UC5
+  usecase "Melihat Berita &\nPengumuman" as UC6
+  usecase "Mengisi Survei\nKepuasan (IKM)" as UC7
+  usecase "Bertanya ke Asisten\nContoh (chatbot)" as UC8
+  usecase "Mengatur Aksesibilitas\n& Bahasa" as UC9
+  usecase "Menerbitkan Konten\nBerita/Profil" as UC10
+  usecase "Menerbitkan Dokumen\nPPID" as UC11
+  usecase "Memasok Jadwal\nDokter Terenkripsi" as UC12
+  usecase "Menyediakan Berkas\nDokumen Publik" as UC13
+}
+
+P --> UC1
+P --> UC2
+P --> UC3
+P --> UC4
+P --> UC5
+P --> UC6
+P --> UC7
+P --> UC8
+P --> UC9
+A --> UC10
+A --> UC6
+O --> UC11
+B --> UC12
+S --> UC10
+C --> UC13
+
+UC3 ..> UC12 : <<include>>
+UC6 ..> UC10 : <<include>>
+UC5 ..> UC13 : <<include>>
+UC8 ..> UC2 : <<extend>>
+UC4 ..> UC1 : <<extend>>
+
+@enduml

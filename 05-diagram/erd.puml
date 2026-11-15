@@ -1,0 +1,95 @@
+@startuml
+skinparam backgroundStyle white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontSize 11
+title ERD — Model Data Logis (bukan tabel SQL; sumber: tipe TypeScript, file statis, API eksternal)
+
+entity "POLI\n(sumber: master_data.json)" as POLI {
+  * kode_poli : string <<PK>>
+  --
+  * nama_poli : string
+  * kategori_layanan : string
+}
+
+entity "DOKTER\n(sumber: master_data.json)" as DOKTER {
+  * id_dokter : number <<PK>>
+  --
+  * nama : string
+  * spesialis : string
+  * jadwal : string
+  * foto : string
+  fk_kode_poli : string <<FK>>
+}
+
+entity "JADWAL_BPJS\n(sumber: apijkn — read-only)" as JAD {
+  * id_jadwal : string <<PK>>
+  --
+  * kode_poli : string <<FK>>
+  * tanggal : date
+  * nama_dokter : string
+  * jam_mulai : string
+  * jam_selesai : string
+  * status_praktek : string
+}
+
+entity "BERITA\n(sumber: api-web — read-only)" as BERITA {
+  * slug : string <<PK>>
+  --
+  * judul : string
+  * isi_html : string
+  * gambar : string
+  * tanggal : string
+  * opd_id : number
+}
+
+entity "DOKUMEN_PPID\n(sumber: ppid.provcontoh — read-only)" as PPIDD {
+  * id_item : number <<PK>>
+  --
+  * judul : string
+  * kategori_id : number <<FK>>
+  * token_view : string
+  * url_stream : string
+}
+
+entity "KATEGORI_PPID\n(sumber: /api/category)" as KAT {
+  * kategori_id : number <<PK>>
+  --
+  * nama_kategori : string
+  * jumlah_item : number
+}
+
+entity "NAVIGASI & INDEKS PENCARIAN\n(src/lib/navigation.ts + route /api/search)" as NAV {
+  * href : string <<PK>>
+  --
+  * label : string
+  * parent : string
+  * sinonim : string
+  * tipe : enum
+}
+
+entity "ENTRI CACHE PPID\n(globalThis.__ppidCache)" as CACHE {
+  * cache_key : string <<PK>>
+  --
+  * data_json : json
+  * timestamp : bigint
+  * ttl_fresh : number
+}
+
+entity "PENGATURAN AKSESIBILITAS\n(localStorage rsud-accessibility)" as ACC {
+  * sesi_lokasi : string <<PK>>
+  --
+  * locale : enum(id,en)
+  * font_size : enum
+  * contrast_mode : enum
+  * voice_enabled : boolean
+}
+
+POLI ||--o{ DOKTER : "memiliki 1..*"
+POLI ||--o{ JAD : "menjadi objek jadwal 1..*"
+KAT ||--o{ PPIDD : "mengelompokkan 1..*"
+PPIDD ||--|| CACHE : "disimpan sebagai 0..1 entri"
+NAV ||--o{ ACC : "dirender sesuai preferensi 0..*"
+DOKTER ||--o{ NAV : "dirujuk hasil pencarian 1..*"
+
+@enduml

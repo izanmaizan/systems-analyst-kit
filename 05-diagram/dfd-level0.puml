@@ -1,0 +1,46 @@
+@startuml
+skinparam backgroundStyle white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontSize 12
+skinparam roundCorner 0
+title DFD Level 0 — Konteks Situs Resmi RSUD Contoh (gaya Yourdon/DeMarco)
+
+left to right direction
+
+rectangle "Pengunjung\n(pasien, keluarga, publik)" as E1
+rectangle "Admin Konten\n(backend Provinsi)" as E2
+rectangle "Operator PPID\n& Humas RSUD" as E3
+
+circle "1.0\nMenyajikan Situs\nResmi RSUD" as P1
+
+storage "DS1 — Cache in-memory\n(ISR, __ppidCache)" as D1
+storage "DS2 — File Statis\nmaster_data.json" as D2
+storage "DS3 — Indeks Pencarian\nnavigasi + sinonim" as D3
+storage "DS4 — Preferensi Pengunjung\nlocalStorage" as D4
+
+rectangle "Backend Konten\napi-web.provcontoh" as X1
+rectangle "Portal PPID\nppid.provcontoh" as X2
+rectangle "BPJS Kesehatan\n(apijkn)" as X3
+rectangle "SURVEI KEPUASAN IKM" as X4
+rectangle "Gemini API\n(Asisten Contoh)" as X5
+
+E1 --> P1 : permintaan halaman (HTTPS)
+P1 --> E1 : HTML + aset, dokumen, hasil pencarian
+E2 --> X1 : unggah berita & halaman profil
+E3 --> X2 : unggah dokumen kewajiban PPID
+X1 --> P1 : data berita/slider/profil (JSON)
+X2 --> P1 : daftar & berkas dokumen
+X3 --> P1 : jadwal dokter terenkripsi
+X4 --> P1 : data penilaian IKM
+X5 --> P1 : jawaban asisten chatbot
+P1 --> X3 : request bertanda tangan HMAC
+P1 --> X4 : permintaan & kiriman survei
+P1 --> X5 : pertanyaan pengunjung (batas 40/120 per 10 menit)
+P1 --> D1 : tulis/baca entri segar
+P1 --> D2 : baca daftar poli & dokter
+P1 --> D3 : baca indeks statis
+E1 --> D4 : tulis preferensi aksesibilitas & bahasa
+D4 --> P1 : preferensi (cookie rsud_locale, googtrans)
+
+@enduml

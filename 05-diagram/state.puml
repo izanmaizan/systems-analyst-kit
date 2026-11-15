@@ -1,0 +1,38 @@
+@startuml
+skinparam backgroundStyle white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontSize 12
+title State Diagram — Siklus Hidup Entri Cache Data PPID
+
+[*] --> TanpaEntri : server start / restart
+
+TanpaEntri --> Memuat : getPPIDItems(kategori)\npemicu pertama / warm()
+Memuat --> Segar : unduhan sukses\nsimpan globalThis.__ppidCache
+Memuat --> Gagal : retry 3x habis\ntimeout 90 detik
+Gagal --> Memuat : percobaan berikutnya
+Gagal --> TanpaEntri : server restart
+
+Segar --> Segar : kunjungan < 2 menit\ndata lalu dikembalikan
+Segar --> Basi : usia >= 2 menit\n(_PPID_FRESH 120000 ms)
+Basi --> Segar : refresh latar belakang sukses\ntimestamp diperbarui
+Basi --> BasiTertunda : refresh gagal\ndata lama tetap disajikan
+BasiTertunda --> Basi : interval warm 60 detik\n(instrumentation-node.ts)
+BasiTertunda --> Memuat : kunjungan berikutnya
+
+Segar --> [*] : server stop
+Basi --> [*] : server stop
+BasiTertunda --> [*] : server stop
+
+note right of Segar
+  Tipe: Map<string, { data, ts }>
+  Tidak persisten — hilang saat
+  restart, dipanaskan tiap 60 detik.
+end note
+note left of BasiTertunda
+  Inflight dedup: satu unduhan
+  per kategori berapa pun
+  jumlah pengunjung.
+end note
+
+@enduml

@@ -1,0 +1,5 @@
+AGENTS.md
+_build/
+_build-anon/
+.DS_Store
+__pycache__/

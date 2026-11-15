@@ -1,0 +1,148 @@
+@startuml
+skinparam backgroundStyle white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontSize 12
+title Class Diagram — Model Domain TypeScript (tanpa basis data SQL)
+
+left to right direction
+
+package "Tipe Data (src/types/index.ts)" {
+  class BeritaItem {
+    +id: number
+    +judul: string
+    +slug: string
+    +isi: string
+    +gambar: string
+    +tanggal: string
+    +getRingkasan(): string
+  }
+  class PPIDItem {
+    +id: number
+    +title: string
+    +url_download: string
+    +kategori: number
+  }
+  class PPIDDisplayItem {
+    +id: number
+    +judul: string
+    +streamUrl: string
+    +token: string
+    +kategori: number
+  }
+  class SearchResult {
+    +type: 'berita'|'dokter'|'layanan'|'halaman'
+    +title: string
+    +href: string
+    +keywords?: string[]
+  }
+  class NavItem {
+    +label: string
+    +href: string
+    +children?: NavItem[]
+    +badge?: string
+  }
+  class AccessibilityState {
+    +fontSize: 'normal'|'large'|'xlarge'
+    +contrastMode: ContrastMode
+    +textSpacing: TextSpacing
+    +voiceEnabled: boolean
+    +dyslexiaFont: boolean
+    +setA(key, val): void
+  }
+}
+
+package "Lapisan Data Server (src/services, src/lib)" {
+  class ServerApi {
+    +baseURL: BACKEND_API_URL
+    +getBeritaList(page): Promise<ApiResponse<BeritaItem[]>>
+    +getSlider(): Promise<SliderItem[]>
+    +getPPIDItems(kategori): Promise<PPIDItem[]>
+    +getPPIDCategories(): Promise<PPIDCategory[]>
+    -serverFetchList(path, revalidate)
+    -ppidGet(url, timeout): Promise<string>
+    -refreshPPIDItems(key): Promise<PPIDItem[]>
+  }
+  class ClientApi {
+    +api: AxiosInstance
+    +getBeritaDetail(slug)
+    +getCategoryData(slug, page)
+    +getPPIDClusterData(kategori)
+    +search(query)
+  }
+  class PpidCache {
+    -_g: globalThis.__ppidCache
+    -_ppidInflight: Map<string, Promise>
+    -_PPID_FRESH: 120000
+    -_PPID_TIMEOUT: 90000
+    +get(kategori): PPIDItem[]
+    +hit(kategori, data, ts): void
+    -dedupe(kategori): Promise
+  }
+  class JadwalService {
+    +kodePoli: string[]
+    +fetchJadwalPoli(kode, tanggal): Promise<DokterJadwal[]>
+    +getJadwalHariIni(): Promise<DokterJadwal[]>
+    +getAllJadwalMingguan(): Promise<DokterJadwal[]>
+    -signTimestamp(): string
+    -decryptResponse(body): string
+  }
+  class SearchService {
+    -KEYWORDS_BY_HREF: Record<string, string[]>
+    -STATIC_INDEX: SearchItem[]
+    -flattenNav(items): SearchItem[]
+    +cari(query): SearchResponse
+    +cocokSinonim(kata): SearchItem[]
+  }
+  class ProxyHandler {
+    +handle(path[]): Promise<NextResponse>
+    +getRevalidateTime(path): number
+    -withCacheHeader(res, path): Headers
+  }
+  class RateLimiter {
+    -rateMap: Map<sid, RateEntry>
+    -ipRateMap: Map<ip, RateEntry>
+    -WINDOW_MS: 600000
+    +consume(map, key, limit): number
+    +checkRateLimit(sid, ip): {allowed, remaining}
+  }
+}
+
+package "Tetangga / Sistem Eksternal" {
+  class BackendKonten
+  class PortalPPID
+  class BPJSKesehatan
+  class SURVEI_KEPUASAN_IKM
+  class GeminiAPI
+  class MasterDataJSON {
+    +path: src/app/api/dokter/master_data.json
+    +poli: 44 entri
+    +dokter: list
+    +read(): object
+  }
+}
+
+BeritaItem "1" *-- "0..*" SearchResult : ditampilkan sebagai
+PPIDItem "1" ..> "1" PPIDDisplayItem : transformPPIDItem()
+ServerApi ..> PPIDItem : membangun
+ServerApi *-- PpidCache : memakai
+ServerApi --> BackendKonten : fetch /api/proxy
+ServerApi --> PortalPPID : ppidGet retry 3x
+ClientApi --> ServerApi : data mentah
+ClientApi ..> SearchResult : hasil pencarian
+ProxyHandler --> BackendKonten : /api/proxy/[...path]
+ProxyHandler --> SURVEI_KEPUASAN_IKM : /api/SURVEI KEPUASAN/[...path]
+JadwalService --> BPJSKesehatan : auth + dekripsi
+JadwalService --> MasterDataJSON : baca daftar poli
+SearchService --> NavItem : indeks statis
+SearchService ..> SearchResult : keluaran
+RateLimiter --> GeminiAPI : batasi /api/chat
+class AppStore {
+    +locale: Locale
+    +searchOpen: boolean
+    +setLocale(l): void
+    +setA(key, val): void
+  }
+  AppStore "1" *-- "1" AccessibilityState
+NavItem "1" -- "0..*" NavItem : children 0..*
+@enduml

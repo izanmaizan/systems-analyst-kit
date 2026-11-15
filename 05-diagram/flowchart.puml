@@ -1,0 +1,56 @@
+@startuml
+skinparam backgroundStyle white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontSize 12
+title Flowchart — Alur Keputusan Rendering Halaman & Pengambilan Data
+
+start
+
+:Input: URL halaman dari browser pengunjung;
+
+if (Halaman termasuk\nkelompok PPID / dokter /\nketerbukaan-informasi?) then (ya)
+  :Pakai dynamic = 'force-dynamic;
+  :Render setiap request;
+else (tidak)
+  if (Halaman punya\nexport const revalidate?) then (ya)
+    :Strategi ISR\n(revalidate 60 / 300 / 600 / 3600);
+    if (Cache ISR masih segar?) then (ya)
+      :Sajikan HTML dari cache ISR;
+    else (tidak)
+      :Bangun ulang di latar belakang\n(revalidate);
+    endif
+  else (tidak)
+    :Client-side render + React Query\n(staleTime 5–60 menit);
+  endif
+endif
+
+:Jalankan ServerApi (src/services/api.ts);
+
+if (Butuh data sumber eksternal?) then (ya)
+  :Lewati route proxy server-side
+  (/api/proxy, /api/ppid/stream, /api/SURVEI KEPUASAN, /api/chat);
+  if (Respons proxy sudah\ndi cache s-maxage?) then (ya)
+    :Ambil dari cache proxy;
+  else (tidak)
+    :Panggil API eksternal\n(retry + timeout + dedup);
+  endif
+else (tidak)
+  :Baca file statis\n(master_data.json, indeks pencarian);
+endif
+
+if (Data diterima utuh?) then (ya)
+  :Normalisasi tipe mentah → tipe frontend;
+  :sanitizeHtml() untuk konten field isi;
+  :Render komponen React;
+  :Output: HTML + header keamanan (CSP, HSTS);
+else (tidak)
+  :Tampilkan empty state / pesan wajar
+  (mis. BPJS tidak terjangkau = jadwal kosong);
+  :Output: halaman tetap terlayani;
+endif
+
+:Respons dikirim ke browser;
+stop
+
+@enduml

@@ -1,0 +1,56 @@
+@startuml
+skinparam backgroundStyle white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontSize 12
+title Sequence Diagram — Alur Utama: Menyajikan Halaman Beranda (ISR)
+
+actor Pengunjung as U
+participant "Browser\n(HP/Desktop)" as B
+participant "Halaman Beranda\npage.tsx (revalidate 60)" as PB
+participant "ServerApi\nsrc/services/api.ts" as API
+participant "/api/proxy/[...path]\nCache-Control s-maxage" as PX
+participant "Backend Konten\napi-web.provcontoh.go.id" as BK
+
+activate U
+U -> B: buka https://RSUDCONTOH.Contohkota.go.id
+activate B
+
+alt ISR masih segar (usia < 60 detik)
+  B -> PB: GET /
+  PB --> B: HTML dari cache ISR
+  note right of PB: Tidak ada pemanggilan backend
+else ISR kadaluarsa (revalidate berjalan)
+  B -> PB: GET /
+  activate PB
+  PB -> API: getSlider(), getBeritaUtama(), getBeritaList()
+  activate API
+  API -> PX: GET /slider/3178, /berita-utama/29
+  activate PX
+  alt cache proxy segar
+    PX --> API: respons dari cache CDN/s-maxage
+    note right of PX: s-maxage=60, stale-while-revalidate=300
+  else cache proxy basi
+    PX -> BK: GET https://api-web.provcontoh.go.id/api/...
+    BK --> PX: JSON mentah (BeritaRaw, SliderRaw)
+    PX --> API: JSON + header Cache-Control
+  end
+  deactivate PX
+  API --> API: normalisasi tipe mentah → tipe frontend
+  API --> PB: data terstruktur
+  deactivate API
+  PB -> API: getJadwalHariIni() via Server Component
+  API -> API: HMAC + dekripsi BPJS (gagal = [] silent)
+  API --> PB: daftar jadwal dokter
+  PB --> PB: render React Server Component
+  deactivate PB
+  PB --> B: HTML + JSON-LD Hospital
+end
+
+B -> B: hydrate + React Query (staleTime 5–60 menit)
+B -> B: sanitizeHtml(field isi) → dangerouslySetInnerHTML
+B --> U: halaman terlihat
+deactivate B
+deactivate U
+
+@enduml
